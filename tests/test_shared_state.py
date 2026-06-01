@@ -59,5 +59,6 @@ def test_thread_safe_concurrent_updates():
 def test_update_rejects_unknown_fields():
     import pytest
     state = SharedState()
-    with pytest.raises(KeyError):
+    with pytest.raises(KeyError, match="cpu_percentt"):
         state.update(cpu_percentt=50.0)
+    assert state.snapshot()["cpu_percent"] == 0.0
