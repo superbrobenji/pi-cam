@@ -90,7 +90,10 @@
                     document.getElementById('camera-dot').className = 'dot ' + (d.camera_ok ? 'ok' : 'err');
                     document.getElementById('yolo-dot').className = 'dot ' + (d.model_ok ? 'ok' : 'err');
                 })
-                .catch(() => {});
+                .catch(() => {
+                    document.getElementById('camera-dot').className = 'dot err';
+                    document.getElementById('yolo-dot').className = 'dot err';
+                });
         }
 
         function togglePreview() {
