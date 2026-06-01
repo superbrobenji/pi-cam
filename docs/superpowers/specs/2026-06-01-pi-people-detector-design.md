@@ -73,7 +73,7 @@ Daemon thread. Loop:
 3. Run YOLOv8 inference (`ultralytics.YOLO`)
 4. Filter results to class `"person"`, confidence ≥ 0.5
 5. Write `count` to SharedState
-6. Sleep to target ~1s cycle time
+6. Sleep `max(0, 1.0 - elapsed)` to target ~1s cycle time regardless of inference duration
 
 On any exception: set `camera_ok=False`, backoff 2s, retry.  
 After successful model load: set `model_ok=True`.
