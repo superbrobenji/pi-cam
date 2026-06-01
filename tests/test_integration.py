@@ -29,3 +29,17 @@ def test_health_value_types(client):
     assert isinstance(data["cpu_percent"], float)
     assert isinstance(data["ram_used"], int)
     assert isinstance(data["ram_total"], int)
+
+
+def test_websocket_emits_count(client):
+    with client.websocket_connect("/ws") as ws:
+        data = ws.receive_json()
+        assert "count" in data
+        assert isinstance(data["count"], int)
+
+
+def test_websocket_increments_ws_clients(client):
+    before = client.get("/health").json()["ws_clients"]
+    with client.websocket_connect("/ws"):
+        during = client.get("/health").json()["ws_clients"]
+    assert during >= before + 1
