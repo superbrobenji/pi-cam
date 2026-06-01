@@ -10,22 +10,18 @@ def client():
         yield c
 
 
-@pytest.fixture(autouse=True)
-def _finite_stream(request, monkeypatch):
-    """Patch get_frame to return None after a few calls so the MJPEG
-    generator terminates cleanly inside TestClient's sync transport."""
-    if request.node.name != "test_stream_content_type":
-        return
-    call_count = [0]
-    real_get_frame = _main_module.state.get_frame
+@pytest.fixture()
+def _finite_stream(monkeypatch):
+    """Replace _mjpeg_generator with a finite version so TestClient's
+    sync transport doesn't block on the infinite production generator."""
+    _FAKE_JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00"
 
-    def _limited():
-        call_count[0] += 1
-        if call_count[0] > 4:
-            return None
-        return real_get_frame()
+    async def _finite():
+        boundary = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+        for _ in range(3):
+            yield boundary + _FAKE_JPEG + b"\r\n"
 
-    monkeypatch.setattr(_main_module.state, "get_frame", _limited)
+    monkeypatch.setattr(_main_module, "_mjpeg_generator", _finite)
 
 
 def test_health_returns_200(client):
@@ -64,7 +60,7 @@ def test_websocket_increments_ws_clients(client):
     assert during >= before + 1
 
 
-def test_stream_content_type(client):
+def test_stream_content_type(client, _finite_stream):
     with client.stream("GET", "/stream") as response:
         assert response.status_code == 200
         assert "multipart/x-mixed-replace" in response.headers["content-type"]

@@ -49,8 +49,6 @@ async def _mjpeg_generator():
     boundary = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
     while True:
         frame = state.get_frame()
-        if frame is None:
-            return
         if frame:
             yield boundary + frame + b"\r\n"
         await asyncio.sleep(0.1)
