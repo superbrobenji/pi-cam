@@ -3,6 +3,7 @@ import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from shared_state import SharedState
 from detector import run_detector
 from health import run_health_poller
@@ -20,6 +21,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+async def index() -> FileResponse:
+    return FileResponse("static/index.html")
 
 
 @app.get("/health")
