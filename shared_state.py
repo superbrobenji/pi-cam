@@ -1,5 +1,10 @@
 import threading
 
+_FIELDS = frozenset({
+    "count", "frame", "camera_ok", "model_ok",
+    "ws_clients", "cpu_percent", "ram_used", "ram_total",
+})
+
 
 class SharedState:
     def __init__(self):
@@ -14,6 +19,9 @@ class SharedState:
         self.ram_total = 0
 
     def update(self, **kwargs):
+        unknown = kwargs.keys() - _FIELDS
+        if unknown:
+            raise KeyError(f"Unknown SharedState fields: {unknown}")
         with self._lock:
             for k, v in kwargs.items():
                 setattr(self, k, v)

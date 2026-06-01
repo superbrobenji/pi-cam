@@ -54,3 +54,10 @@ def test_thread_safe_concurrent_updates():
 
     assert not errors
     assert isinstance(state.snapshot()["count"], int)
+
+
+def test_update_rejects_unknown_fields():
+    import pytest
+    state = SharedState()
+    with pytest.raises(KeyError):
+        state.update(cpu_percentt=50.0)
