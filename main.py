@@ -9,6 +9,7 @@ from health import run_health_poller
 
 state = SharedState()
 ws_clients: set[WebSocket] = set()
+_ws_lock = asyncio.Lock()
 
 
 @asynccontextmanager
@@ -29,8 +30,9 @@ async def health() -> JSONResponse:
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
-    ws_clients.add(websocket)
-    state.update(ws_clients=len(ws_clients))
+    async with _ws_lock:
+        ws_clients.add(websocket)
+        state.update(ws_clients=len(ws_clients))
     try:
         while True:
             await websocket.send_json({"count": state.count})
@@ -38,5 +40,6 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     except Exception:
         pass
     finally:
-        ws_clients.discard(websocket)
-        state.update(ws_clients=len(ws_clients))
+        async with _ws_lock:
+            ws_clients.discard(websocket)
+            state.update(ws_clients=len(ws_clients))
