@@ -85,8 +85,8 @@
                 .then(r => r.json())
                 .then(d => {
                     document.getElementById('cpu').textContent = d.cpu_percent.toFixed(1) + '%';
-                    const ramPct = ((d.ram_used / d.ram_total) * 100).toFixed(1);
-                    document.getElementById('ram').textContent = ramPct + '%';
+                    const ramPct = d.ram_total > 0 ? ((d.ram_used / d.ram_total) * 100).toFixed(1) + '%' : '—';
+                    document.getElementById('ram').textContent = ramPct;
                     document.getElementById('camera-dot').className = 'dot ' + (d.camera_ok ? 'ok' : 'err');
                     document.getElementById('yolo-dot').className = 'dot ' + (d.model_ok ? 'ok' : 'err');
                 })

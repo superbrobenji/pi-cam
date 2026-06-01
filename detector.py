@@ -10,7 +10,9 @@ _PERSON_CLASS_ID = 0
 
 
 def _encode_jpeg(frame: np.ndarray) -> bytes:
-    _, buf = cv2.imencode(".jpg", frame)
+    ok, buf = cv2.imencode(".jpg", frame)
+    if not ok:
+        raise RuntimeError("JPEG encode failed")
     return buf.tobytes()
 
 
