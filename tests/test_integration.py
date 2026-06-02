@@ -97,3 +97,34 @@ def test_stream_rejects_second_viewer(monkeypatch):
     with TestClient(app) as c:
         response = c.get("/stream")
     assert response.status_code == 409
+
+
+def test_health_returns_error_fields(client):
+    data = client.get("/health").json()
+    for field in ("camera_error", "camera_error_at", "model_error", "model_error_at",
+                  "health_error", "health_error_at", "stream_error", "stream_error_at"):
+        assert field in data, f"Missing field: {field}"
+        assert data[field] is None
+
+
+def test_logs_returns_list_for_known_component(client):
+    resp = client.get("/logs/detector")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+
+def test_logs_returns_404_for_unknown_component(client):
+    resp = client.get("/logs/unknown")
+    assert resp.status_code == 404
+
+
+def test_restart_detector_returns_restarting(client):
+    resp = client.post("/control/restart/detector")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "restarting"
+
+
+def test_restart_health_returns_restarting(client):
+    resp = client.post("/control/restart/health")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "restarting"
