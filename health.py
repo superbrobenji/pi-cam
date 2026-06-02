@@ -1,6 +1,6 @@
 import time
-from typing import Optional
 import psutil
+from typing import Optional
 from shared_state import SharedState
 
 
