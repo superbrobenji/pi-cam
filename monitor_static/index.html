@@ -58,12 +58,12 @@
     <div class="header">
         <div class="title">PI MONITOR</div>
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('ops')">OPS</button>
-            <button class="tab-btn" onclick="switchTab('live')">LIVE</button>
+            <button class="tab-btn active" onclick="switchTab('live')">LIVE</button>
+            <button class="tab-btn" onclick="switchTab('ops')">OPS</button>
         </div>
     </div>
 
-    <div id="tab-ops" class="tab-pane active">
+    <div id="tab-ops" class="tab-pane">
         <div class="offline-banner" id="offline-banner"></div>
 
         <div class="service-banner">
@@ -120,7 +120,7 @@
         </div>
     </div>
 
-    <div id="tab-live" class="tab-pane">
+    <div id="tab-live" class="tab-pane active">
         <div class="count-panel">
             <div class="count-label">PEOPLE IN FRAME</div>
             <div class="count-value" id="live-count">—</div>
@@ -152,7 +152,7 @@
     </div>
 
     <script>
-        var currentTab = 'ops';
+        var currentTab = 'live';
         var opsTimer = null;
         var liveTimer = null;
         var ws = null;
@@ -161,12 +161,13 @@
 
         function switchTab(tab) {
             document.getElementById('tab-' + currentTab).classList.remove('active');
-            document.querySelectorAll('.tab-btn')[tab === 'ops' ? 0 : 1].classList.add('active');
-            document.querySelectorAll('.tab-btn')[tab === 'ops' ? 1 : 0].classList.remove('active');
+            document.querySelectorAll('.tab-btn')[tab === 'live' ? 0 : 1].classList.add('active');
+            document.querySelectorAll('.tab-btn')[tab === 'live' ? 1 : 0].classList.remove('active');
             document.getElementById('tab-' + tab).classList.add('active');
             if (currentTab === 'ops') stopOps();
             if (currentTab === 'live') stopLive();
             currentTab = tab;
+            localStorage.setItem('pi-monitor-tab', tab);
             if (tab === 'live') startLive(); else startOps();
         }
 
@@ -350,7 +351,19 @@
             return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
 
-        startOps();
+        (function() {
+            var saved = localStorage.getItem('pi-monitor-tab') || 'live';
+            if (saved === 'live') {
+                startLive();
+            } else {
+                document.getElementById('tab-live').classList.remove('active');
+                document.getElementById('tab-ops').classList.add('active');
+                document.querySelectorAll('.tab-btn')[0].classList.remove('active');
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                currentTab = 'ops';
+                startOps();
+            }
+        })();
     </script>
 </body>
 </html>
