@@ -51,3 +51,11 @@ def test_thread_safe_concurrent_appends():
 
     assert not errors
     assert len(log_buffer.get("stream")) <= 100
+
+
+def test_unknown_component_raises():
+    import pytest
+    with pytest.raises(ValueError, match="Unknown component"):
+        log_buffer.append("camera", "ERROR", "msg")
+    with pytest.raises(ValueError, match="Unknown component"):
+        log_buffer.get("camera")
