@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+[[ $EUID -ne 0 ]] || { echo "Error: do not run install.sh as root"; exit 1; }
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_NAME="pi-people-detector"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
@@ -25,6 +27,7 @@ User=$(whoami)
 WorkingDirectory=${REPO_DIR}
 ExecStart=${REPO_DIR}/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -36,4 +39,4 @@ sudo systemctl enable --now "$SERVICE_NAME"
 
 echo ""
 echo "Done. Service status:"
-systemctl status "$SERVICE_NAME" --no-pager
+systemctl status "$SERVICE_NAME" --no-pager || true
