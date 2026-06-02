@@ -16,6 +16,14 @@ def test_initial_values():
     assert snap["cpu_temp"] is None
     assert snap["disk_used"] == 0
     assert snap["disk_total"] == 0
+    assert snap["camera_error"] is None
+    assert snap["camera_error_at"] is None
+    assert snap["model_error"] is None
+    assert snap["model_error_at"] is None
+    assert snap["health_error"] is None
+    assert snap["health_error_at"] is None
+    assert snap["stream_error"] is None
+    assert snap["stream_error_at"] is None
 
 
 def test_update_and_snapshot():
