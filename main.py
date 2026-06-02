@@ -1,8 +1,8 @@
 import asyncio
 import threading
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi import FastAPI, Request, WebSocket
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from shared_state import SharedState
 from detector import run_detector
@@ -11,6 +11,7 @@ from health import run_health_poller
 state = SharedState()
 ws_clients: set[WebSocket] = set()
 _ws_lock = asyncio.Lock()
+_stream_lock = asyncio.Lock()
 
 
 @asynccontextmanager
@@ -53,18 +54,33 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             state.update(ws_clients=len(ws_clients))
 
 
-async def _mjpeg_generator():
+async def _mjpeg_generator(request: Request):
     boundary = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
-    while True:
-        frame = state.get_frame()
-        if frame:
-            yield boundary + frame + b"\r\n"
-        await asyncio.sleep(0.1)
+    state.update(stream_active=True)
+    try:
+        while not await request.is_disconnected():
+            frame = state.get_frame()
+            if frame:
+                yield boundary + frame + b"\r\n"
+            await asyncio.sleep(0.1)
+    finally:
+        state.update(stream_active=False)
 
 
 @app.get("/stream")
-async def stream() -> StreamingResponse:
+async def stream(request: Request) -> Response:
+    if _stream_lock.locked():
+        return Response(status_code=409, content="Stream already active")
+    await _stream_lock.acquire()
+
+    async def locked_generator():
+        try:
+            async for chunk in _mjpeg_generator(request):
+                yield chunk
+        finally:
+            _stream_lock.release()
+
     return StreamingResponse(
-        _mjpeg_generator(),
+        locked_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
