@@ -12,6 +12,10 @@ def test_initial_values():
     assert snap["cpu_percent"] == 0.0
     assert snap["ram_used"] == 0
     assert snap["ram_total"] == 0
+    assert snap["stream_active"] is False
+    assert snap["cpu_temp"] is None
+    assert snap["disk_used"] == 0
+    assert snap["disk_total"] == 0
 
 
 def test_update_and_snapshot():
