@@ -41,5 +41,6 @@ def test_health_poller_tracks_error_on_exception(monkeypatch):
     time.sleep(0.2)
     stop.set()
     t.join(timeout=2.0)
-    assert state.health_error == "psutil error"
-    assert state.health_error_at is not None
+    snap = state.snapshot()
+    assert snap["health_error"] == "psutil error"
+    assert snap["health_error_at"] is not None
