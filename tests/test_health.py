@@ -14,3 +14,7 @@ def test_health_poller_updates_cpu_and_ram():
     assert snap["ram_used"] > 0
     assert snap["ram_total"] > 0
     assert snap["ram_used"] <= snap["ram_total"]
+    assert snap["disk_total"] > 0
+    assert snap["disk_used"] >= 0
+    assert snap["disk_used"] <= snap["disk_total"]
+    assert snap["cpu_temp"] is None or isinstance(snap["cpu_temp"], float)
