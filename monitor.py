@@ -42,8 +42,13 @@ async def _poll_main_app() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(_poll_main_app())
+    task = asyncio.create_task(_poll_main_app())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(lifespan=lifespan)
