@@ -31,13 +31,18 @@ pip install -r requirements.txt
 
 ### On the Pi (live camera)
 
+After running `install.sh`, the app starts automatically as a service. See [Service Management](#service-management) to control it.
+
+For manual runs (debugging only — stop the service first to avoid port conflicts):
+
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+sudo systemctl stop pi-people-detector
+./venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://<pi-ip>:8000` in a browser on your local network.
-
 ### Development (no camera)
+
+With the venv active (`source venv/bin/activate`):
 
 ```bash
 MOCK_CAMERA=1 uvicorn main:app --reload --port 8000
@@ -60,6 +65,12 @@ sudo systemctl stop pi-people-detector
 
 # Start the service
 sudo systemctl start pi-people-detector
+
+# Restart the service (e.g. after a code update)
+sudo systemctl restart pi-people-detector
+
+# Check service status
+systemctl status pi-people-detector
 
 # Disable autostart
 sudo systemctl disable pi-people-detector
