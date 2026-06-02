@@ -70,7 +70,7 @@ async def _mjpeg_generator(request: Request):
     except Exception as e:
         msg = str(e)
         log_buffer.append("stream", "ERROR", msg)
-        state.update(stream_error=msg, stream_error_at=asyncio.get_event_loop().time())
+        state.update(stream_error=msg, stream_error_at=asyncio.get_running_loop().time())
     finally:
         state.update(stream_active=False)
 
