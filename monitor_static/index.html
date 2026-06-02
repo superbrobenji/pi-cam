@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Monitor</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #0d0d0d; color: #e0e0e0; padding: 2rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .title { font-size: 1.2rem; color: #888; letter-spacing: 0.2em; }
+        .tabs { display: flex; gap: 0.5rem; }
+        .tab-btn { background: #1e1e1e; border: 1px solid #333; color: #666; padding: 0.4rem 1rem; cursor: pointer; font-family: monospace; font-size: 0.85rem; }
+        .tab-btn.active { border-color: #ccc; color: #ccc; }
+        .tab-btn:hover { background: #2a2a2a; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        .service-banner { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; border: 1px solid #333; padding: 0.75rem 1rem; margin-bottom: 1.5rem; }
+        .service-name { font-size: 0.9rem; color: #ccc; }
+        .service-status { display: flex; align-items: center; gap: 0.75rem; }
+        .section-title { font-size: 0.8rem; color: #666; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+        .component-grid { margin-bottom: 1.5rem; }
+        .component-row { display: grid; grid-template-columns: 8px 120px 1fr auto; align-items: start; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; }
+        .component-info { display: flex; flex-direction: column; gap: 0.2rem; }
+        .component-error { font-size: 0.75rem; color: #f44336; cursor: pointer; word-break: break-all; }
+        .component-error-time { font-size: 0.7rem; color: #555; }
+        .log-controls { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center; }
+        .log-select { background: #1e1e1e; border: 1px solid #333; color: #ccc; padding: 0.3rem 0.5rem; font-family: monospace; font-size: 0.85rem; }
+        .log-entries { background: #111; border: 1px solid #222; padding: 0.75rem; height: 220px; overflow-y: auto; font-size: 0.75rem; }
+        .log-entry { display: flex; gap: 1rem; margin-bottom: 0.25rem; line-height: 1.4; }
+        .log-ts { color: #555; white-space: nowrap; }
+        .log-ERROR { color: #f44336; }
+        .log-INFO { color: #4caf50; }
+        .log-WARN { color: #ff9800; }
+        .log-msg { color: #aaa; word-break: break-all; }
+        .count-panel { text-align: center; margin-bottom: 2rem; }
+        .count-label { font-size: 0.9rem; color: #666; letter-spacing: 0.15em; margin-bottom: 0.5rem; }
+        .count-value { font-size: 6rem; font-weight: bold; color: #fff; line-height: 1; }
+        .health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+        .health-card { background: #1a1a1a; border: 1px solid #222; padding: 0.75rem; }
+        .health-card-label { font-size: 0.75rem; color: #666; margin-bottom: 0.3rem; }
+        .health-card-value { font-size: 1.1rem; color: #ccc; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-top: 4px; }
+        .dot.ok { background: #4caf50; }
+        .dot.err { background: #f44336; }
+        .dot.warn { background: #ff9800; }
+        .btn { background: #1e1e1e; border: 1px solid #333; color: #ccc; padding: 0.3rem 0.75rem; cursor: pointer; font-family: monospace; font-size: 0.8rem; white-space: nowrap; }
+        .btn:hover { background: #2a2a2a; }
+        .btn-danger { border-color: #f44336; color: #f44336; }
+        .btn-danger:hover { background: #1a0a0a; }
+        .offline-banner { background: #1a0a0a; border: 1px solid #f44336; padding: 0.5rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; color: #f44336; display: none; }
+        .ws-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; font-size: 0.8rem; color: #666; }
+        .preview-btn { background: #1e1e1e; border: 1px solid #333; color: #ccc; padding: 0.5rem 1rem; cursor: pointer; font-family: monospace; font-size: 0.85rem; display: block; margin-bottom: 0.75rem; }
+        #camera-img { width: 100%; max-width: 640px; display: block; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">PI MONITOR</div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('ops')">OPS</button>
+            <button class="tab-btn" onclick="switchTab('live')">LIVE</button>
+        </div>
+    </div>
+
+    <div id="tab-ops" class="tab-pane active">
+        <div class="offline-banner" id="offline-banner"></div>
+
+        <div class="service-banner">
+            <span class="service-name">pi-people-detector</span>
+            <div class="service-status">
+                <span class="dot err" id="service-dot"></span>
+                <span id="service-status-text" style="font-size:0.85rem;color:#888">—</span>
+                <button class="btn btn-danger" onclick="restartService()">Restart Service</button>
+            </div>
+        </div>
+
+        <div class="section-title">COMPONENTS</div>
+        <div class="component-grid">
+            <div class="component-row">
+                <span class="dot err" id="dot-camera"></span>
+                <span style="color:#888">Camera</span>
+                <div class="component-info">
+                    <span class="component-error" id="err-camera" style="display:none" onclick="toggleErr('camera')"></span>
+                    <span class="component-error-time" id="err-camera-at"></span>
+                </div>
+                <button class="btn" onclick="restartComponent('detector')">Restart</button>
+            </div>
+            <div class="component-row">
+                <span class="dot err" id="dot-yolo"></span>
+                <span style="color:#888">YOLO</span>
+                <div class="component-info">
+                    <span class="component-error" id="err-yolo" style="display:none" onclick="toggleErr('yolo')"></span>
+                    <span class="component-error-time" id="err-yolo-at"></span>
+                </div>
+                <button class="btn" onclick="restartComponent('detector')">Restart</button>
+            </div>
+            <div class="component-row">
+                <span class="dot err" id="dot-health"></span>
+                <span style="color:#888">Health</span>
+                <div class="component-info">
+                    <span class="component-error" id="err-health" style="display:none" onclick="toggleErr('health')"></span>
+                    <span class="component-error-time" id="err-health-at"></span>
+                </div>
+                <button class="btn" onclick="restartComponent('health')">Restart</button>
+            </div>
+        </div>
+
+        <div class="section-title">LOGS</div>
+        <div class="log-controls">
+            <select class="log-select" id="log-component">
+                <option value="detector">Detector</option>
+                <option value="health">Health</option>
+                <option value="stream">Stream</option>
+            </select>
+            <button class="btn" onclick="loadLogs()">Refresh</button>
+        </div>
+        <div class="log-entries" id="log-entries">
+            <span style="color:#444">Select a component and click Refresh</span>
+        </div>
+    </div>
+
+    <div id="tab-live" class="tab-pane">
+        <div class="count-panel">
+            <div class="count-label">PEOPLE IN FRAME</div>
+            <div class="count-value" id="live-count">—</div>
+        </div>
+        <div class="health-grid">
+            <div class="health-card">
+                <div class="health-card-label">CPU</div>
+                <div class="health-card-value" id="live-cpu">—</div>
+            </div>
+            <div class="health-card">
+                <div class="health-card-label">RAM</div>
+                <div class="health-card-value" id="live-ram">—</div>
+            </div>
+            <div class="health-card">
+                <div class="health-card-label">TEMP</div>
+                <div class="health-card-value" id="live-temp">—</div>
+            </div>
+            <div class="health-card">
+                <div class="health-card-label">DISK</div>
+                <div class="health-card-value" id="live-disk">—</div>
+            </div>
+        </div>
+        <div class="ws-row">
+            <span class="dot err" id="live-ws-dot"></span>
+            <span>WebSocket</span>
+        </div>
+        <button class="preview-btn" id="preview-btn" onclick="togglePreview()">Open Camera Preview</button>
+        <img id="camera-img" alt="Camera preview" style="display:none" />
+    </div>
+
+    <script>
+        var currentTab = 'ops';
+        var opsTimer = null;
+        var liveTimer = null;
+        var ws = null;
+        var wsDelay = 1000;
+        var MAIN = location.protocol + '//' + location.hostname + ':8000';
+
+        function switchTab(tab) {
+            document.getElementById('tab-' + currentTab).classList.remove('active');
+            document.querySelectorAll('.tab-btn')[tab === 'ops' ? 0 : 1].classList.add('active');
+            document.querySelectorAll('.tab-btn')[tab === 'ops' ? 1 : 0].classList.remove('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+            if (currentTab === 'live') stopLive();
+            currentTab = tab;
+            if (tab === 'live') startLive(); else startOps();
+        }
+
+        function startOps() {
+            pollOps();
+            opsTimer = setInterval(pollOps, 3000);
+        }
+
+        function stopOps() {
+            clearInterval(opsTimer);
+            opsTimer = null;
+        }
+
+        function pollOps() {
+            fetch('/api/status')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    var banner = document.getElementById('offline-banner');
+                    if (!d.app_online) {
+                        var since = d.app_offline_since ? ' since ' + relTime(d.app_offline_since) : '';
+                        banner.textContent = '● Main app offline' + since;
+                        banner.style.display = 'block';
+                    } else {
+                        banner.style.display = 'none';
+                    }
+                    var dot = document.getElementById('service-dot');
+                    dot.className = 'dot ' + (d.app_online ? 'ok' : 'err');
+                    document.getElementById('service-status-text').textContent = d.app_online ? 'Active' : 'Offline';
+                    setComp('camera', d.camera_ok, d.camera_error, d.camera_error_at);
+                    setComp('yolo',   d.model_ok,  d.model_error,  d.model_error_at);
+                    var healthOk = !d.health_error && d.ram_total > 0;
+                    setComp('health', healthOk, d.health_error, d.health_error_at);
+                })
+                .catch(function() {
+                    var banner = document.getElementById('offline-banner');
+                    banner.textContent = '● Monitor unreachable';
+                    banner.style.display = 'block';
+                });
+        }
+
+        function setComp(name, ok, err, errAt) {
+            var dot = document.getElementById('dot-' + name);
+            var errEl = document.getElementById('err-' + name);
+            var atEl = document.getElementById('err-' + name + '-at');
+            dot.className = 'dot ' + (ok ? 'ok' : (err ? 'err' : 'warn'));
+            if (err) {
+                errEl._full = err;
+                errEl._short = err.length > 80 ? err.slice(0, 80) + '…' : err;
+                errEl._expanded = false;
+                errEl.textContent = errEl._short;
+                errEl.style.display = 'block';
+                atEl.textContent = errAt ? relTime(errAt) : '';
+            } else {
+                errEl.style.display = 'none';
+                atEl.textContent = '';
+            }
+        }
+
+        function toggleErr(name) {
+            var el = document.getElementById('err-' + name);
+            el._expanded = !el._expanded;
+            el.textContent = el._expanded ? el._full : el._short;
+        }
+
+        function loadLogs() {
+            var comp = document.getElementById('log-component').value;
+            var box = document.getElementById('log-entries');
+            box.innerHTML = '<span style="color:#444">Loading…</span>';
+            fetch('/api/logs/' + comp)
+                .then(function(r) { return r.json(); })
+                .then(function(entries) {
+                    if (!entries.length) {
+                        box.innerHTML = '<span style="color:#444">No entries</span>';
+                        return;
+                    }
+                    box.innerHTML = entries.map(function(e) {
+                        return '<div class="log-entry">' +
+                            '<span class="log-ts">' + fmtTs(e.ts) + '</span>' +
+                            '<span class="log-' + e.level + '">' + e.level + '</span>' +
+                            '<span class="log-msg">' + esc(e.msg) + '</span>' +
+                            '</div>';
+                    }).join('');
+                    box.scrollTop = box.scrollHeight;
+                })
+                .catch(function() {
+                    box.innerHTML = '<span style="color:#f44336">Failed to load</span>';
+                });
+        }
+
+        function restartComponent(comp) {
+            fetch('/api/restart/' + comp, { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function() { setTimeout(pollOps, 1500); })
+                .catch(function() { alert('Restart request failed'); });
+        }
+
+        function restartService() {
+            if (!confirm('Restart pi-people-detector service?\nThe app will be offline for a few seconds.')) return;
+            fetch('/api/restart/service', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function() { setTimeout(pollOps, 4000); })
+                .catch(function() { alert('Restart failed'); });
+        }
+
+        function startLive() {
+            connectWS();
+            pollLive();
+            liveTimer = setInterval(pollLive, 3000);
+        }
+
+        function stopLive() {
+            clearInterval(liveTimer);
+            liveTimer = null;
+            if (ws) { ws.close(); ws = null; }
+            var img = document.getElementById('camera-img');
+            if (img.style.display !== 'none') togglePreview();
+        }
+
+        function connectWS() {
+            if (currentTab !== 'live') return;
+            var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(proto + '//' + location.hostname + ':8000/ws');
+            ws.onopen = function() {
+                document.getElementById('live-ws-dot').className = 'dot ok';
+                wsDelay = 1000;
+            };
+            ws.onmessage = function(e) {
+                document.getElementById('live-count').textContent = JSON.parse(e.data).count;
+            };
+            ws.onclose = ws.onerror = function() {
+                document.getElementById('live-ws-dot').className = 'dot err';
+                if (currentTab === 'live') {
+                    setTimeout(connectWS, wsDelay);
+                    wsDelay = Math.min(wsDelay * 2, 30000);
+                }
+            };
+        }
+
+        function pollLive() {
+            fetch(MAIN + '/health')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    document.getElementById('live-cpu').textContent = d.cpu_percent.toFixed(1) + '%';
+                    document.getElementById('live-ram').textContent = d.ram_total > 0
+                        ? ((d.ram_used / d.ram_total) * 100).toFixed(1) + '%' : '—';
+                    document.getElementById('live-temp').textContent = d.cpu_temp != null
+                        ? d.cpu_temp.toFixed(1) + '°C' : '—';
+                    document.getElementById('live-disk').textContent = d.disk_total > 0
+                        ? ((d.disk_used / d.disk_total) * 100).toFixed(1) + '%' : '—';
+                })
+                .catch(function() {});
+        }
+
+        function togglePreview() {
+            var img = document.getElementById('camera-img');
+            var btn = document.getElementById('preview-btn');
+            if (img.style.display === 'none') {
+                img.src = MAIN + '/stream';
+                img.style.display = 'block';
+                btn.textContent = 'Close Camera Preview';
+            } else {
+                img.src = '';
+                img.style.display = 'none';
+                btn.textContent = 'Open Camera Preview';
+            }
+        }
+
+        function relTime(ts) {
+            var diff = Math.floor(Date.now() / 1000 - ts);
+            if (diff < 60) return diff + 's ago';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            return Math.floor(diff / 3600) + 'h ago';
+        }
+
+        function fmtTs(ts) {
+            return new Date(ts * 1000).toLocaleTimeString();
+        }
+
+        function esc(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        startOps();
+    </script>
+</body>
+</html>
