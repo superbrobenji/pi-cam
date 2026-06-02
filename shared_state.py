@@ -1,8 +1,14 @@
 import threading
+from typing import Optional
 
 _FIELDS = frozenset({
     "count", "frame", "camera_ok", "model_ok",
     "ws_clients", "cpu_percent", "ram_used", "ram_total",
+    "stream_active", "cpu_temp", "disk_used", "disk_total",
+    "camera_error", "camera_error_at",
+    "model_error", "model_error_at",
+    "health_error", "health_error_at",
+    "stream_error", "stream_error_at",
 })
 
 
@@ -17,6 +23,18 @@ class SharedState:
         self.cpu_percent = 0.0
         self.ram_used = 0
         self.ram_total = 0
+        self.stream_active = False
+        self.cpu_temp: Optional[float] = None
+        self.disk_used = 0
+        self.disk_total = 0
+        self.camera_error: Optional[str] = None
+        self.camera_error_at: Optional[float] = None
+        self.model_error: Optional[str] = None
+        self.model_error_at: Optional[float] = None
+        self.health_error: Optional[str] = None
+        self.health_error_at: Optional[float] = None
+        self.stream_error: Optional[str] = None
+        self.stream_error_at: Optional[float] = None
 
     def update(self, **kwargs):
         unknown = kwargs.keys() - _FIELDS
@@ -36,6 +54,18 @@ class SharedState:
                 "cpu_percent": self.cpu_percent,
                 "ram_used": self.ram_used,
                 "ram_total": self.ram_total,
+                "stream_active": self.stream_active,
+                "cpu_temp": self.cpu_temp,
+                "disk_used": self.disk_used,
+                "disk_total": self.disk_total,
+                "camera_error": self.camera_error,
+                "camera_error_at": self.camera_error_at,
+                "model_error": self.model_error,
+                "model_error_at": self.model_error_at,
+                "health_error": self.health_error,
+                "health_error_at": self.health_error_at,
+                "stream_error": self.stream_error,
+                "stream_error_at": self.stream_error_at,
             }
 
     def get_frame(self) -> bytes:

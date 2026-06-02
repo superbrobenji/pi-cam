@@ -10,13 +10,24 @@ def client():
         yield c
 
 
+@pytest.fixture(autouse=True)
+def _reset_stream_lock():
+    """Ensure _stream_lock is free before and after each test."""
+    yield
+    lock = _main_module._stream_lock
+    if hasattr(lock, "locked") and hasattr(lock, "release") and lock.locked():
+        try:
+            lock.release()
+        except RuntimeError:
+            pass
+
+
 @pytest.fixture()
 def _finite_stream(monkeypatch):
-    """Replace _mjpeg_generator with a finite version so TestClient's
-    sync transport doesn't block on the infinite production generator."""
+    """Replace _mjpeg_generator with a finite version that accepts a request arg."""
     _FAKE_JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00"
 
-    async def _finite():
+    async def _finite(request):
         boundary = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
         for _ in range(3):
             yield boundary + _FAKE_JPEG + b"\r\n"
@@ -31,7 +42,11 @@ def test_health_returns_200(client):
 
 def test_health_returns_expected_keys(client):
     data = client.get("/health").json()
-    expected = {"count", "camera_ok", "model_ok", "ws_clients", "cpu_percent", "ram_used", "ram_total"}
+    expected = {
+        "count", "camera_ok", "model_ok", "ws_clients",
+        "cpu_percent", "ram_used", "ram_total",
+        "stream_active", "cpu_temp", "disk_used", "disk_total",
+    }
     assert expected.issubset(data.keys())
 
 
@@ -44,6 +59,10 @@ def test_health_value_types(client):
     assert isinstance(data["cpu_percent"], float)
     assert isinstance(data["ram_used"], int)
     assert isinstance(data["ram_total"], int)
+    assert isinstance(data["stream_active"], bool)
+    assert data["cpu_temp"] is None or isinstance(data["cpu_temp"], float)
+    assert isinstance(data["disk_used"], int)
+    assert isinstance(data["disk_total"], int)
 
 
 def test_websocket_emits_count(client):
@@ -64,3 +83,48 @@ def test_stream_content_type(client, _finite_stream):
     with client.stream("GET", "/stream") as response:
         assert response.status_code == 200
         assert "multipart/x-mixed-replace" in response.headers["content-type"]
+
+
+def test_stream_rejects_second_viewer(monkeypatch):
+    class _HeldLock:
+        def locked(self):
+            return True
+
+        def release(self):
+            pass
+
+    monkeypatch.setattr(_main_module, "_stream_lock", _HeldLock())
+    with TestClient(app) as c:
+        response = c.get("/stream")
+    assert response.status_code == 409
+
+
+def test_health_returns_error_fields(client):
+    data = client.get("/health").json()
+    for field in ("camera_error", "camera_error_at", "model_error", "model_error_at",
+                  "health_error", "health_error_at", "stream_error", "stream_error_at"):
+        assert field in data, f"Missing field: {field}"
+        assert data[field] is None
+
+
+def test_logs_returns_list_for_known_component(client):
+    resp = client.get("/logs/detector")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+
+def test_logs_returns_404_for_unknown_component(client):
+    resp = client.get("/logs/unknown")
+    assert resp.status_code == 404
+
+
+def test_restart_detector_returns_restarting(client):
+    resp = client.post("/control/restart/detector")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "restarting"
+
+
+def test_restart_health_returns_restarting(client):
+    resp = client.post("/control/restart/health")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "restarting"
