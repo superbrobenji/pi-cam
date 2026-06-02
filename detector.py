@@ -27,11 +27,9 @@ def run_detector(state: SharedState) -> None:
 def _run_mock_loop(state: SharedState) -> None:
     while True:
         t0 = time.monotonic()
-        state.update(
-            frame=_encode_jpeg(_MOCK_FRAME),
-            camera_ok=True,
-            count=0,
-        )
+        if state.stream_active:
+            state.update(frame=_encode_jpeg(_MOCK_FRAME))
+        state.update(camera_ok=True, count=0)
         time.sleep(max(0.0, 1.0 - (time.monotonic() - t0)))
 
 
@@ -46,6 +44,7 @@ def _run_live_loop(state: SharedState) -> None:
         return
 
     cap = None
+    retry_delay = 2.0
     while True:
         t0 = time.monotonic()
         try:
@@ -56,7 +55,11 @@ def _run_live_loop(state: SharedState) -> None:
             if not ok:
                 raise RuntimeError("Frame read failed")
 
-            state.update(frame=_encode_jpeg(frame), camera_ok=True)
+            retry_delay = 2.0
+
+            if state.stream_active:
+                state.update(frame=_encode_jpeg(frame))
+            state.update(camera_ok=True)
 
             results = model(frame, verbose=False)[0]
             count = sum(
@@ -65,6 +68,7 @@ def _run_live_loop(state: SharedState) -> None:
                 if int(box.cls[0]) == _PERSON_CLASS_ID
                 and float(box.conf[0]) >= _CONFIDENCE_THRESHOLD
             )
+            del results
             state.update(count=count)
 
         except Exception:
@@ -72,7 +76,8 @@ def _run_live_loop(state: SharedState) -> None:
             if cap is not None:
                 cap.release()
                 cap = None
-            time.sleep(2.0)
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 30.0)
             continue
 
         time.sleep(max(0.0, 1.0 - (time.monotonic() - t0)))

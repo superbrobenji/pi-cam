@@ -29,6 +29,23 @@ def test_mock_count_is_int():
 
 def test_mock_frame_is_nonempty_bytes():
     state = SharedState()
+    state.update(stream_active=True)
+    _start_detector(state)
+    frame = state.get_frame()
+    assert isinstance(frame, bytes)
+    assert len(frame) > 0
+
+
+def test_mock_frame_empty_when_stream_inactive():
+    state = SharedState()
+    # stream_active defaults to False — no frame should be encoded
+    _start_detector(state)
+    assert state.get_frame() == b""
+
+
+def test_mock_frame_nonempty_when_stream_active():
+    state = SharedState()
+    state.update(stream_active=True)
     _start_detector(state)
     frame = state.get_frame()
     assert isinstance(frame, bytes)
