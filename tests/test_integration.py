@@ -11,15 +11,15 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def _reset_stream_lock(monkeypatch):
+def _reset_stream_lock():
     """Ensure _stream_lock is free before and after each test."""
-    lock = _main_module._stream_lock
-    if lock.locked() and hasattr(lock, "release"):
-        lock.release()
     yield
     lock = _main_module._stream_lock
-    if lock.locked() and hasattr(lock, "release"):
-        lock.release()
+    if hasattr(lock, "locked") and hasattr(lock, "release") and lock.locked():
+        try:
+            lock.release()
+        except RuntimeError:
+            pass
 
 
 @pytest.fixture()
@@ -86,11 +86,14 @@ def test_stream_content_type(client, _finite_stream):
 
 
 def test_stream_rejects_second_viewer(monkeypatch):
-    class _LockedMock:
+    class _HeldLock:
         def locked(self):
             return True
 
-    monkeypatch.setattr(_main_module, "_stream_lock", _LockedMock())
+        def release(self):
+            pass
+
+    monkeypatch.setattr(_main_module, "_stream_lock", _HeldLock())
     with TestClient(app) as c:
         response = c.get("/stream")
     assert response.status_code == 409

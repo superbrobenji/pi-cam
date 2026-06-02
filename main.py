@@ -69,6 +69,7 @@ async def _mjpeg_generator(request: Request):
 
 @app.get("/stream")
 async def stream(request: Request) -> Response:
+    # locked() check + acquire() is atomic in single-threaded asyncio (no await between them)
     if _stream_lock.locked():
         return Response(status_code=409, content="Stream already active")
     await _stream_lock.acquire()
