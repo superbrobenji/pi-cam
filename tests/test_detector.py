@@ -50,3 +50,14 @@ def test_mock_frame_nonempty_when_stream_active():
     frame = state.get_frame()
     assert isinstance(frame, bytes)
     assert len(frame) > 0
+
+
+def test_detector_stops_when_stop_event_set():
+    state = SharedState()
+    stop = threading.Event()
+    t = threading.Thread(target=run_detector, args=(state, stop), daemon=True)
+    t.start()
+    time.sleep(0.4)
+    stop.set()
+    t.join(timeout=3.0)
+    assert not t.is_alive(), "Detector thread should have exited after stop_event set"
