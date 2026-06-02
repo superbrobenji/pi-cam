@@ -307,10 +307,10 @@
         }
 
         function pollLive() {
-            fetch(MAIN + '/health')
+            fetch('/api/status')
                 .then(function(r) { return r.json(); })
                 .then(function(d) {
-                    document.getElementById('live-cpu').textContent = d.cpu_percent.toFixed(1) + '%';
+                    document.getElementById('live-cpu').textContent = d.cpu_percent != null ? d.cpu_percent.toFixed(1) + '%' : '—';
                     document.getElementById('live-ram').textContent = d.ram_total > 0
                         ? ((d.ram_used / d.ram_total) * 100).toFixed(1) + '%' : '—';
                     document.getElementById('live-temp').textContent = d.cpu_temp != null
