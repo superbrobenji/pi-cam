@@ -1,6 +1,6 @@
 # Pi People Detector
 
-Detects people in a webcam frame using YOLOv8 and broadcasts a live count over WebSocket. Includes a web UI with device health stats and optional MJPEG camera preview.
+Detects people in a webcam frame using YOLOv8 and broadcasts a live count over WebSocket. A separate management dashboard at port 8001 provides component health, error logs, and restart controls.
 
 ## Requirements
 
@@ -29,15 +29,21 @@ pip install -r requirements.txt
 
 ## Running
 
-### On the Pi (live camera)
+After `install.sh`, both services start automatically:
 
-After running `install.sh`, the app starts automatically as a service. See [Service Management](#service-management) to control it.
+| Service | URL | Description |
+|---|---|---|
+| `pi-people-detector` | `http://<pi-ip>:8000` | Detector API (WebSocket, health, stream) |
+| `pi-monitor` | `http://<pi-ip>:8001` | Management dashboard |
 
-For manual runs (debugging only — stop the service first to avoid port conflicts):
+Open `http://<pi-ip>:8001` in a browser to access the dashboard.
+
+### Manual run (debugging only — stop services first)
 
 ```bash
-sudo systemctl stop pi-people-detector
+sudo systemctl stop pi-people-detector pi-monitor
 ./venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+./venv/bin/uvicorn monitor:app --host 0.0.0.0 --port 8001
 ```
 
 ### Development (no camera)
@@ -46,6 +52,7 @@ With the venv active (`source venv/bin/activate`):
 
 ```bash
 MOCK_CAMERA=1 uvicorn main:app --reload --port 8000
+uvicorn monitor:app --reload --port 8001
 ```
 
 ### Tests
@@ -56,27 +63,22 @@ pytest -v
 
 ## Service Management
 
+Use the dashboard at `http://<pi-ip>:8001` to restart components or view logs. For shell access:
+
 ```bash
 # View live logs
 journalctl -u pi-people-detector -f
+journalctl -u pi-monitor -f
 
-# Stop the service
-sudo systemctl stop pi-people-detector
-
-# Start the service
-sudo systemctl start pi-people-detector
-
-# Restart the service (e.g. after a code update)
+# Restart services
 sudo systemctl restart pi-people-detector
+sudo systemctl restart pi-monitor
 
-# Check service status
-systemctl status pi-people-detector
-
-# Disable autostart
-sudo systemctl disable pi-people-detector
+# Check status
+systemctl status pi-people-detector pi-monitor
 ```
 
-The service restarts once automatically on crash. If it crashes again within 60 seconds, it stays stopped. Run `sudo systemctl reset-failed pi-people-detector` to clear the failure state and allow restarts again.
+Both services restart once automatically on crash. If a service crashes again within 60 seconds, it stays stopped. Run `sudo systemctl reset-failed <service-name>` to clear the failure state.
 
 ## WebSocket API
 
@@ -86,11 +88,24 @@ Connect to `ws://<host>:8000/ws`. Receives JSON every ~1 second:
 {"count": 3}
 ```
 
-## Endpoints
+## API Endpoints (port 8000)
 
 | Path | Description |
 |---|---|
-| `GET /` | Web UI |
-| `WS /ws` | Live people count |
+| `WS /ws` | Live people count (JSON `{"count": N}` every ~1s) |
 | `GET /stream` | MJPEG camera preview |
 | `GET /health` | JSON device health snapshot |
+| `GET /logs/{component}` | Last 100 log entries for `detector`, `health`, or `stream` |
+| `POST /control/restart/detector` | Restart detector thread |
+| `POST /control/restart/health` | Restart health poller thread |
+
+## Monitor Endpoints (port 8001)
+
+| Path | Description |
+|---|---|
+| `GET /` | Management dashboard |
+| `GET /api/status` | Aggregated health + online status |
+| `GET /api/logs/{component}` | Proxied log entries |
+| `POST /api/restart/detector` | Restart detector via main app |
+| `POST /api/restart/health` | Restart health poller via main app |
+| `POST /api/restart/service` | Restart entire `pi-people-detector` service |
