@@ -80,7 +80,8 @@ def test_websocket_emits_count(client):
 
 def test_websocket_increments_ws_clients(client):
     before = client.get("/health").json()["ws_clients"]
-    with client.websocket_connect("/ws"):
+    with client.websocket_connect("/ws") as ws:
+        ws.receive_json()  # wait for first message to guarantee ws_clients is updated
         during = client.get("/health").json()["ws_clients"]
     assert during >= before + 1
 
@@ -140,3 +141,32 @@ def test_reset_tracking_returns_ok(client):
     resp = client.post("/control/reset-tracking")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
+
+
+def test_settings_returns_ok(client):
+    resp = client.post("/control/settings", json={
+        "model_name": "yolov8s.pt",
+        "confidence_threshold": 0.70,
+        "iou_threshold": 0.55,
+    })
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+    assert "restarted" in resp.json()
+
+
+def test_settings_rejects_invalid_model(client):
+    resp = client.post("/control/settings", json={
+        "model_name": "yolov8x.pt",
+        "confidence_threshold": 0.65,
+        "iou_threshold": 0.60,
+    })
+    assert resp.status_code == 422
+
+
+def test_settings_rejects_invalid_threshold(client):
+    resp = client.post("/control/settings", json={
+        "model_name": "yolov8s.pt",
+        "confidence_threshold": 1.5,
+        "iou_threshold": 0.60,
+    })
+    assert resp.status_code == 422
