@@ -75,3 +75,20 @@ def test_reset_tracking_returns_503_when_offline(client):
     _monitor_module._state.app_online = False
     resp = client.post("/api/reset-tracking")
     assert resp.status_code == 503
+
+
+def test_get_settings_returns_expected_keys(client):
+    data = client.get("/api/settings").json()
+    assert "model_name" in data
+    assert "confidence_threshold" in data
+    assert "iou_threshold" in data
+
+
+def test_post_settings_returns_503_when_offline(client):
+    _monitor_module._state.app_online = False
+    resp = client.post("/api/settings", json={
+        "model_name": "yolov8s.pt",
+        "confidence_threshold": 0.65,
+        "iou_threshold": 0.60,
+    })
+    assert resp.status_code == 503

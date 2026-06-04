@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 MAIN_APP_URL = "http://localhost:8000"
@@ -124,6 +124,28 @@ async def reset_tracking() -> JSONResponse:
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(f"{MAIN_APP_URL}/control/reset-tracking")
+            return JSONResponse(resp.json())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=502)
+
+
+@app.get("/api/settings")
+async def get_settings() -> JSONResponse:
+    return JSONResponse({
+        "model_name": _state.last_health.get("model_name", "yolov8s.pt"),
+        "confidence_threshold": _state.last_health.get("confidence_threshold", 0.65),
+        "iou_threshold": _state.last_health.get("iou_threshold", 0.60),
+    })
+
+
+@app.post("/api/settings")
+async def post_settings(request: Request) -> JSONResponse:
+    if not _state.app_online:
+        return JSONResponse({"error": "main app offline"}, status_code=503)
+    try:
+        body = await request.json()
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post(f"{MAIN_APP_URL}/control/settings", json=body)
             return JSONResponse(resp.json())
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=502)
