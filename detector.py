@@ -62,8 +62,8 @@ def _run_live_loop(state: SharedState, stop_event: threading.Event) -> None:
         t0 = time.monotonic()
 
         if state.reset_tracking:
-            prev_ids.clear()
-            all_seen_ids.clear()
+            prev_ids = set()
+            all_seen_ids = set()
             state.update(
                 reset_tracking=False,
                 unique_total=0,
@@ -117,6 +117,7 @@ def _run_live_loop(state: SharedState, stop_event: threading.Event) -> None:
             log_buffer.append("detector", "ERROR", msg)
             state.update(
                 camera_ok=False, count=0,
+                entered_frame=0, first_seen=0,
                 camera_error=msg, camera_error_at=time.time(),
             )
             if cap is not None:
