@@ -16,6 +16,8 @@ _stream_lock = asyncio.Lock()
 _detector_stop = threading.Event()
 _health_stop = threading.Event()
 
+_VALID_MODELS = {"yolov8n.pt", "yolov8s.pt", "yolov8m.pt"}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,14 +41,18 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         ws_clients.add(websocket)
         state.update(ws_clients=len(ws_clients))
     try:
+        last_tick = -1
         while True:
-            await websocket.send_json({
-                "rawCount": state.count,
-                "enteredFrame": state.entered_frame,
-                "firstSeen": state.first_seen,
-                "uniqueTotal": state.unique_total,
-            })
             await asyncio.sleep(1.0)
+            current_tick = state.inference_tick
+            if current_tick != last_tick:
+                last_tick = current_tick
+                await websocket.send_json({
+                    "rawCount": state.count,
+                    "enteredFrame": state.entered_frame,
+                    "firstSeen": state.first_seen,
+                    "uniqueTotal": state.unique_total,
+                })
     except Exception:
         pass
     finally:
@@ -74,7 +80,6 @@ async def _mjpeg_generator(request: Request):
 
 @app.get("/stream")
 async def stream(request: Request) -> Response:
-    # locked() check + acquire() is atomic in single-threaded asyncio (no await between them)
     if _stream_lock.locked():
         return Response(status_code=409, content="Stream already active")
     await _stream_lock.acquire()
@@ -117,6 +122,56 @@ async def reset_tracking() -> JSONResponse:
     state.update(reset_tracking=True)
     log_buffer.append("detector", "INFO", "Tracking reset requested")
     return JSONResponse({"status": "ok"})
+
+
+@app.post("/control/settings")
+async def update_settings(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+
+    model_name = body.get("model_name")
+    confidence_threshold = body.get("confidence_threshold")
+    iou_threshold = body.get("iou_threshold")
+
+    if model_name not in _VALID_MODELS:
+        return JSONResponse(
+            {"error": f"model_name must be one of {sorted(_VALID_MODELS)}"},
+            status_code=422,
+        )
+    if not isinstance(confidence_threshold, (int, float)) or not (0.1 <= confidence_threshold <= 0.99):
+        return JSONResponse(
+            {"error": "confidence_threshold must be a float between 0.1 and 0.99"},
+            status_code=422,
+        )
+    if not isinstance(iou_threshold, (int, float)) or not (0.1 <= iou_threshold <= 0.99):
+        return JSONResponse(
+            {"error": "iou_threshold must be a float between 0.1 and 0.99"},
+            status_code=422,
+        )
+
+    model_changed = model_name != state.model_name
+    state.update(
+        model_name=model_name,
+        confidence_threshold=float(confidence_threshold),
+        iou_threshold=float(iou_threshold),
+    )
+
+    restarted = False
+    if model_changed:
+        global _detector_stop
+        _detector_stop.set()
+        _detector_stop = threading.Event()
+        log_buffer.append("detector", "INFO", f"Model changed to {model_name}, restarting")
+        threading.Thread(
+            target=run_detector,
+            args=(state, _detector_stop),
+            daemon=True,
+        ).start()
+        restarted = True
+
+    return JSONResponse({"status": "ok", "restarted": restarted})
 
 
 @app.get("/logs/{component}")

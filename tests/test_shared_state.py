@@ -28,6 +28,10 @@ def test_initial_values():
     assert snap["first_seen"] == 0
     assert snap["unique_total"] == 0
     assert snap["reset_tracking"] is False
+    assert snap["model_name"] == "yolov8s.pt"
+    assert snap["confidence_threshold"] == 0.65
+    assert snap["iou_threshold"] == 0.60
+    assert snap["inference_tick"] == 0
 
 
 def test_update_and_snapshot():

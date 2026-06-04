@@ -70,3 +70,25 @@ def test_mock_sets_tracking_fields_to_zero():
     assert snap["entered_frame"] == 0
     assert snap["first_seen"] == 0
     assert snap["unique_total"] == 0
+
+
+def test_mock_increments_inference_tick():
+    state = SharedState()
+    _start_detector(state)
+    assert state.snapshot()["inference_tick"] > 0
+
+
+def test_on_inference_callback_fires_in_mock():
+    state = SharedState()
+    calls = []
+    stop = threading.Event()
+    t = threading.Thread(
+        target=run_detector,
+        args=(state, stop, lambda: calls.append(1)),
+        daemon=True,
+    )
+    t.start()
+    time.sleep(0.4)
+    stop.set()
+    t.join(timeout=3.0)
+    assert len(calls) > 0
