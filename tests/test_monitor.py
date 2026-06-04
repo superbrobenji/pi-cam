@@ -92,3 +92,14 @@ def test_post_settings_returns_503_when_offline(client):
         "iou_threshold": 0.60,
     })
     assert resp.status_code == 503
+
+
+def test_get_settings_returns_tracker_fields(client):
+    data = client.get("/api/settings").json()
+    assert "track_memory_minutes" in data
+    assert "track_high_thresh" in data
+    assert "track_low_thresh" in data
+    assert "new_track_thresh" in data
+    assert "match_thresh" in data
+    assert data["track_memory_minutes"] == 240
+    assert data["match_thresh"] == 0.8

@@ -148,6 +148,11 @@ def test_settings_returns_ok(client):
         "model_name": "yolov8s.pt",
         "confidence_threshold": 0.70,
         "iou_threshold": 0.55,
+        "track_memory_minutes": 240,
+        "track_high_thresh": 0.50,
+        "track_low_thresh": 0.10,
+        "new_track_thresh": 0.50,
+        "match_thresh": 0.80,
     })
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
@@ -159,6 +164,11 @@ def test_settings_rejects_invalid_model(client):
         "model_name": "yolov8x.pt",
         "confidence_threshold": 0.65,
         "iou_threshold": 0.60,
+        "track_memory_minutes": 240,
+        "track_high_thresh": 0.50,
+        "track_low_thresh": 0.10,
+        "new_track_thresh": 0.50,
+        "match_thresh": 0.80,
     })
     assert resp.status_code == 422
 
@@ -168,5 +178,54 @@ def test_settings_rejects_invalid_threshold(client):
         "model_name": "yolov8s.pt",
         "confidence_threshold": 1.5,
         "iou_threshold": 0.60,
+        "track_memory_minutes": 240,
+        "track_high_thresh": 0.50,
+        "track_low_thresh": 0.10,
+        "new_track_thresh": 0.50,
+        "match_thresh": 0.80,
     })
     assert resp.status_code == 422
+
+
+def test_settings_accepts_tracker_params(client):
+    resp = client.post("/control/settings", json={
+        "model_name": "yolov8s.pt",
+        "confidence_threshold": 0.65,
+        "iou_threshold": 0.60,
+        "track_memory_minutes": 120,
+        "track_high_thresh": 0.55,
+        "track_low_thresh": 0.12,
+        "new_track_thresh": 0.55,
+        "match_thresh": 0.75,
+    })
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+
+
+def test_settings_rejects_invalid_track_memory(client):
+    resp = client.post("/control/settings", json={
+        "model_name": "yolov8s.pt",
+        "confidence_threshold": 0.65,
+        "iou_threshold": 0.60,
+        "track_memory_minutes": 9999,
+        "track_high_thresh": 0.5,
+        "track_low_thresh": 0.1,
+        "new_track_thresh": 0.5,
+        "match_thresh": 0.8,
+    })
+    assert resp.status_code == 422
+
+
+def test_settings_tracker_change_triggers_restart(client):
+    resp = client.post("/control/settings", json={
+        "model_name": "yolov8s.pt",
+        "confidence_threshold": 0.65,
+        "iou_threshold": 0.60,
+        "track_memory_minutes": 60,
+        "track_high_thresh": 0.5,
+        "track_low_thresh": 0.1,
+        "new_track_thresh": 0.5,
+        "match_thresh": 0.8,
+    })
+    assert resp.status_code == 200
+    assert resp.json()["restarted"] is True

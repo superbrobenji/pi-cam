@@ -134,6 +134,11 @@ async def update_settings(request: Request) -> JSONResponse:
     model_name = body.get("model_name")
     confidence_threshold = body.get("confidence_threshold")
     iou_threshold = body.get("iou_threshold")
+    track_memory_minutes = body.get("track_memory_minutes")
+    track_high_thresh = body.get("track_high_thresh")
+    track_low_thresh = body.get("track_low_thresh")
+    new_track_thresh = body.get("new_track_thresh")
+    match_thresh = body.get("match_thresh")
 
     if model_name not in _VALID_MODELS:
         return JSONResponse(
@@ -150,20 +155,59 @@ async def update_settings(request: Request) -> JSONResponse:
             {"error": "iou_threshold must be a float between 0.1 and 0.99"},
             status_code=422,
         )
+    if isinstance(track_memory_minutes, bool) or not isinstance(track_memory_minutes, int) or not (1 <= track_memory_minutes <= 1440):
+        return JSONResponse(
+            {"error": "track_memory_minutes must be an int between 1 and 1440"},
+            status_code=422,
+        )
+    if not isinstance(track_high_thresh, (int, float)) or not (0.1 <= track_high_thresh <= 0.99):
+        return JSONResponse(
+            {"error": "track_high_thresh must be a float between 0.1 and 0.99"},
+            status_code=422,
+        )
+    if not isinstance(track_low_thresh, (int, float)) or not (0.05 <= track_low_thresh < track_high_thresh):
+        return JSONResponse(
+            {"error": "track_low_thresh must be a float >= 0.05 and strictly less than track_high_thresh"},
+            status_code=422,
+        )
+    if not isinstance(new_track_thresh, (int, float)) or not (0.1 <= new_track_thresh <= 0.99):
+        return JSONResponse(
+            {"error": "new_track_thresh must be a float between 0.1 and 0.99"},
+            status_code=422,
+        )
+    if not isinstance(match_thresh, (int, float)) or not (0.1 <= match_thresh <= 0.99):
+        return JSONResponse(
+            {"error": "match_thresh must be a float between 0.1 and 0.99"},
+            status_code=422,
+        )
 
     model_changed = model_name != state.model_name
+    tracker_changed = (
+        track_memory_minutes != state.track_memory_minutes
+        or track_high_thresh != state.track_high_thresh
+        or track_low_thresh != state.track_low_thresh
+        or new_track_thresh != state.new_track_thresh
+        or match_thresh != state.match_thresh
+    )
+
     state.update(
         model_name=model_name,
         confidence_threshold=float(confidence_threshold),
         iou_threshold=float(iou_threshold),
+        track_memory_minutes=int(track_memory_minutes),
+        track_high_thresh=float(track_high_thresh),
+        track_low_thresh=float(track_low_thresh),
+        new_track_thresh=float(new_track_thresh),
+        match_thresh=float(match_thresh),
     )
 
     restarted = False
-    if model_changed:
+    if model_changed or tracker_changed:
         global _detector_stop
         _detector_stop.set()
         _detector_stop = threading.Event()
-        log_buffer.append("detector", "INFO", f"Model changed to {model_name}, restarting")
+        reason = f"Model changed to {model_name}" if model_changed else "Tracker params changed"
+        log_buffer.append("detector", "INFO", f"{reason}, restarting")
         threading.Thread(
             target=run_detector,
             args=(state, _detector_stop),

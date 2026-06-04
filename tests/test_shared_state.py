@@ -32,6 +32,11 @@ def test_initial_values():
     assert snap["confidence_threshold"] == 0.65
     assert snap["iou_threshold"] == 0.60
     assert snap["inference_tick"] == 0
+    assert snap["track_memory_minutes"] == 240
+    assert snap["track_high_thresh"] == 0.5
+    assert snap["track_low_thresh"] == 0.1
+    assert snap["new_track_thresh"] == 0.5
+    assert snap["match_thresh"] == 0.8
 
 
 def test_update_and_snapshot():
