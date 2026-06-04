@@ -3,12 +3,11 @@ import time
 import threading
 import cv2
 import numpy as np
-from typing import Optional
+from typing import Callable, Optional
 import log_buffer
 from shared_state import SharedState
 
 _MOCK_FRAME = np.zeros((480, 640, 3), dtype=np.uint8)
-_CONFIDENCE_THRESHOLD = 0.5
 _PERSON_CLASS_ID = 0
 
 
@@ -19,17 +18,25 @@ def _encode_jpeg(frame: np.ndarray) -> bytes:
     return buf.tobytes()
 
 
-def run_detector(state: SharedState, stop_event: Optional[threading.Event] = None) -> None:
+def run_detector(
+    state: SharedState,
+    stop_event: Optional[threading.Event] = None,
+    on_inference: Optional[Callable] = None,
+) -> None:
     if stop_event is None:
         stop_event = threading.Event()
     if os.environ.get("MOCK_CAMERA") == "1":
         state.update(model_ok=True)
-        _run_mock_loop(state, stop_event)
+        _run_mock_loop(state, stop_event, on_inference)
     else:
-        _run_live_loop(state, stop_event)
+        _run_live_loop(state, stop_event, on_inference)
 
 
-def _run_mock_loop(state: SharedState, stop_event: threading.Event) -> None:
+def _run_mock_loop(
+    state: SharedState,
+    stop_event: threading.Event,
+    on_inference: Optional[Callable] = None,
+) -> None:
     while not stop_event.is_set():
         t0 = time.monotonic()
         if state.stream_active:
@@ -37,15 +44,22 @@ def _run_mock_loop(state: SharedState, stop_event: threading.Event) -> None:
         state.update(
             camera_ok=True, count=0,
             entered_frame=0, first_seen=0, unique_total=0,
+            inference_tick=state.inference_tick + 1,
         )
+        if on_inference:
+            on_inference()
         stop_event.wait(max(0.0, 1.0 - (time.monotonic() - t0)))
 
 
-def _run_live_loop(state: SharedState, stop_event: threading.Event) -> None:
+def _run_live_loop(
+    state: SharedState,
+    stop_event: threading.Event,
+    on_inference: Optional[Callable] = None,
+) -> None:
     from ultralytics import YOLO
 
     try:
-        model = YOLO("yolov8n.pt")
+        model = YOLO(state.model_name)
         state.update(model_ok=True, model_error=None, model_error_at=None)
     except Exception as e:
         msg = str(e)
@@ -85,12 +99,15 @@ def _run_live_loop(state: SharedState, stop_event: threading.Event) -> None:
             if state.stream_active:
                 state.update(frame=_encode_jpeg(frame))
 
-            results = model.track(frame, persist=True, verbose=False)[0]
+            results = model.track(
+                frame, persist=True, verbose=False,
+                iou=state.iou_threshold,
+            )[0]
 
             person_indices = [
                 i for i, box in enumerate(results.boxes)
                 if int(box.cls[0]) == _PERSON_CLASS_ID
-                and float(box.conf[0]) >= _CONFIDENCE_THRESHOLD
+                and float(box.conf[0]) >= state.confidence_threshold
             ]
 
             if results.boxes.id is not None:
@@ -110,7 +127,10 @@ def _run_live_loop(state: SharedState, stop_event: threading.Event) -> None:
                 entered_frame=entered_frame,
                 first_seen=len(new_ids),
                 unique_total=len(all_seen_ids),
+                inference_tick=state.inference_tick + 1,
             )
+            if on_inference:
+                on_inference()
 
         except Exception as e:
             msg = str(e)
