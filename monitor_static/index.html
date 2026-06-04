@@ -56,14 +56,17 @@
         .settings-sublabel { font-size: 0.7rem; color: #555; margin-bottom: 0.25rem; margin-top: 0.4rem; }
         .preset-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
         .preset-btn { background: #1e1e1e; border: 1px solid #333; color: #666; padding: 0.25rem 0.6rem; cursor: pointer; font-family: monospace; font-size: 0.75rem; }
-        .preset-btn.active { border-color: #4caf50; color: #4caf50; }
+        .preset-btn.active { background: #0d1f0d; border-color: #4caf50; color: #4caf50; font-weight: bold; }
+        .preset-btn.active::before { content: '✓ '; }
         .preset-btn:hover { background: #2a2a2a; }
         .model-cards { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .model-card { background: #1a1a1a; border: 1px solid #333; padding: 0.5rem 0.75rem; cursor: pointer; font-family: monospace; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.15rem; }
-        .model-card.selected { border-color: #4caf50; }
+        .model-card { background: #1a1a1a; border: 2px solid #333; padding: 0.5rem 0.75rem; cursor: pointer; font-family: monospace; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.15rem; }
+        .model-card.selected { background: #0d1f0d; border-color: #4caf50; }
+        .model-card.selected .model-name::after { content: ' ✓'; color: #4caf50; }
         .model-name { color: #ccc; }
         .model-desc { color: #555; font-size: 0.7rem; }
         input[type="range"] { accent-color: #4caf50; width: 100%; }
+        .slider-effect { font-size: 0.7rem; color: #444; margin-top: 0.2rem; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
@@ -150,7 +153,7 @@
                 </div>
                 <div class="model-card selected" data-model="yolov8s.pt" onclick="selectModel('yolov8s.pt')">
                     <span class="model-name">yolov8s</span>
-                    <span class="model-desc">Recommended ✓</span>
+                    <span class="model-desc">Recommended</span>
                 </div>
                 <div class="model-card" data-model="yolov8m.pt" onclick="selectModel('yolov8m.pt')">
                     <span class="model-name">yolov8m</span>
@@ -159,18 +162,20 @@
             </div>
         </div>
         <div class="settings-group">
-            <div class="settings-label">Confidence <span class="settings-hint">Permissive ←→ Strict</span></div>
+            <div class="settings-label">Detection Confidence</div>
             <div style="display:flex;align-items:center;gap:0.75rem">
                 <input id="setting-confidence" type="range" min="0.10" max="0.99" step="0.05" value="0.65" oninput="markDetCustom();document.getElementById('conf-val').textContent=parseFloat(this.value).toFixed(2)">
                 <span id="conf-val" style="width:2.5rem;text-align:right;font-size:0.85rem;color:#ccc">0.65</span>
             </div>
+            <div class="slider-effect"><span>← more people detected (more false positives)</span><span>(misses people) →</span></div>
         </div>
         <div class="settings-group">
-            <div class="settings-label">IoU <span class="settings-hint">Permissive ←→ Strict</span></div>
+            <div class="settings-label">IoU — Overlap Threshold</div>
             <div style="display:flex;align-items:center;gap:0.75rem">
                 <input id="setting-iou" type="range" min="0.10" max="0.99" step="0.05" value="0.60" oninput="markDetCustom();document.getElementById('iou-val').textContent=parseFloat(this.value).toFixed(2)">
                 <span id="iou-val" style="width:2.5rem;text-align:right;font-size:0.85rem;color:#ccc">0.60</span>
             </div>
+            <div class="slider-effect"><span>← keep more boxes (double-count risk)</span><span>(miss overlapping people) →</span></div>
         </div>
 
         <div class="section-title" style="margin-top:1.5rem;margin-bottom:0.75rem">TRACKING</div>
@@ -193,28 +198,32 @@
         <div class="settings-group">
             <div class="settings-label">Confidence Zones <span class="settings-hint">ignored / recovery only / actively tracked</span></div>
             <div id="zone-bar" style="height:10px;border-radius:3px;margin-bottom:0.75rem;background:#333"></div>
-            <div class="settings-sublabel">Low threshold — ignored → recovery (must be &lt; High)</div>
-            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
+            <div class="settings-sublabel">Low — min confidence to use a detection for recovering a lost track</div>
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.25rem">
                 <input id="setting-low-thresh" type="range" min="0.05" max="0.49" step="0.05" value="0.10" oninput="markTrkCustom();updateZoneBar();document.getElementById('low-val').textContent=parseFloat(this.value).toFixed(2)">
                 <span id="low-val" style="width:2.5rem;text-align:right;font-size:0.85rem;color:#ccc">0.10</span>
             </div>
-            <div class="settings-sublabel">High threshold — recovery → actively tracked</div>
-            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
+            <div class="slider-effect" style="margin-bottom:0.5rem"><span>← recovers more (noisy)</span><span>(misses re-entries) →</span></div>
+            <div class="settings-sublabel">High — min confidence to actively track someone as a real person</div>
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.25rem">
                 <input id="setting-high-thresh" type="range" min="0.10" max="0.99" step="0.05" value="0.50" oninput="markTrkCustom();updateZoneBar();document.getElementById('high-val').textContent=parseFloat(this.value).toFixed(2)">
                 <span id="high-val" style="width:2.5rem;text-align:right;font-size:0.85rem;color:#ccc">0.50</span>
             </div>
-            <div class="settings-sublabel">New person threshold — min confidence to register a brand new person</div>
-            <div style="display:flex;align-items:center;gap:0.75rem">
+            <div class="slider-effect" style="margin-bottom:0.5rem"><span>← tracks more people (false positives)</span><span>(misses real people) →</span></div>
+            <div class="settings-sublabel">New person — min confidence to count someone as a brand new arrival</div>
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.25rem">
                 <input id="setting-new-track-thresh" type="range" min="0.10" max="0.99" step="0.05" value="0.50" oninput="markTrkCustom();document.getElementById('new-val').textContent=parseFloat(this.value).toFixed(2)">
                 <span id="new-val" style="width:2.5rem;text-align:right;font-size:0.85rem;color:#ccc">0.50</span>
             </div>
+            <div class="slider-effect"><span>← more new-person counts (false arrivals)</span><span>(misses new arrivals) →</span></div>
         </div>
         <div class="settings-group">
-            <div class="settings-label">Re-ID Match Strictness <span class="settings-hint">Loose ←→ Strict — overlap required to recognise returning person</span></div>
-            <div style="display:flex;align-items:center;gap:0.75rem">
+            <div class="settings-label">Re-ID Match — how closely a re-appearing person must overlap their last position to be recognised as the same person</div>
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.4rem">
                 <input id="setting-match-thresh" type="range" min="0.10" max="0.99" step="0.05" value="0.80" oninput="markTrkCustom();document.getElementById('match-val').textContent=parseFloat(this.value).toFixed(2)">
                 <span id="match-val" style="width:2.5rem;text-align:right;font-size:0.85rem;color:#ccc">0.80</span>
             </div>
+            <div class="slider-effect"><span>← same person counted again more often</span><span>(fails to re-link returning person) →</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem">
             <button class="btn" onclick="applySettings()">Apply</button>
