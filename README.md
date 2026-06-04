@@ -85,14 +85,28 @@ Both services restart once automatically on crash. If a service crashes again wi
 Connect to `ws://<host>:8000/ws`. Receives JSON every ~1 second:
 
 ```json
-{"count": 3}
+{
+  "rawCount": 5,
+  "enteredFrame": 2,
+  "firstSeen": 1,
+  "uniqueTotal": 14
+}
 ```
+
+| Field | Description |
+|---|---|
+| `rawCount` | Total people currently in frame |
+| `enteredFrame` | People not present in previous tick |
+| `firstSeen` | People seen for the first time this session |
+| `uniqueTotal` | Cumulative unique people since app start |
+
+See `docs/websocket-integration.md` for full integration examples.
 
 ## API Endpoints (port 8000)
 
 | Path | Description |
 |---|---|
-| `WS /ws` | Live people count (JSON `{"count": N}` every ~1s) |
+| `WS /ws` | Live tracking data (rawCount, enteredFrame, firstSeen, uniqueTotal) every ~1s |
 | `GET /stream` | MJPEG camera preview |
 | `GET /health` | JSON device health snapshot |
 | `GET /logs/{component}` | Last 100 log entries for `detector`, `health`, or `stream` |
