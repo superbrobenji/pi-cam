@@ -372,8 +372,11 @@
         function resetTracking() {
             if (!confirm('Reset unique total? This cannot be undone.')) return;
             fetch('/api/reset-tracking', { method: 'POST' })
-                .then(function(r) { return r.json(); })
-                .catch(function() { alert('Reset failed'); });
+                .then(function(r) {
+                    if (!r.ok) throw new Error('Server error: ' + r.status);
+                    document.getElementById('live-unique-total').textContent = '0';
+                })
+                .catch(function(e) { alert('Reset failed: ' + e.message); });
         }
 
         (function() {
