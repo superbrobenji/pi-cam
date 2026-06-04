@@ -183,7 +183,8 @@
         </div>
         <div class="ws-row">
             <span class="dot err" id="live-ws-dot"></span>
-            <span>WebSocket</span>
+            <span id="live-ws-status">Connecting…</span>
+            <span id="live-ws-detail" style="color:#555;font-size:0.75rem;margin-left:0.5rem"></span>
         </div>
         <button class="preview-btn" id="preview-btn" onclick="togglePreview()">Open Camera Preview</button>
         <img id="camera-img" alt="Camera preview" style="display:none" />
@@ -195,7 +196,35 @@
         var liveTimer = null;
         var ws = null;
         var wsDelay = 1000;
+        var _wsCountdownTimer = null;
         var MAIN = location.protocol + '//' + location.hostname + ':8000';
+
+        var _WS_CLOSE_LABELS = {
+            1000: 'Normal closure', 1001: 'Going away',
+            1006: 'Abnormal closure', 1011: 'Server error',
+        };
+        function _wsCloseLabel(code) {
+            return _WS_CLOSE_LABELS[code] || ('Code ' + code);
+        }
+        function _setWsStatus(dotClass, status, detail) {
+            document.getElementById('live-ws-dot').className = 'dot ' + dotClass;
+            document.getElementById('live-ws-status').textContent = status;
+            document.getElementById('live-ws-detail').textContent = detail || '';
+        }
+        function _startCountdown(secs) {
+            clearInterval(_wsCountdownTimer);
+            var remaining = secs;
+            _setWsStatus('warn', 'Reconnecting', 'in ' + remaining + 's…');
+            _wsCountdownTimer = setInterval(function() {
+                remaining -= 1;
+                if (remaining <= 0) {
+                    clearInterval(_wsCountdownTimer);
+                    _setWsStatus('warn', 'Reconnecting', '…');
+                } else {
+                    document.getElementById('live-ws-detail').textContent = 'in ' + remaining + 's…';
+                }
+            }, 1000);
+        }
 
         function switchTab(tab) {
             document.getElementById('tab-' + currentTab).classList.remove('active');
@@ -320,7 +349,9 @@
 
         function stopLive() {
             clearInterval(liveTimer);
+            clearInterval(_wsCountdownTimer);
             liveTimer = null;
+            _wsCountdownTimer = null;
             if (ws) { ws.close(); ws = null; }
             var img = document.getElementById('camera-img');
             if (img.style.display !== 'none') togglePreview();
@@ -328,11 +359,13 @@
 
         function connectWS() {
             if (currentTab !== 'live') return;
+            _setWsStatus('warn', 'Connecting…', '');
             var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(proto + '//' + location.hostname + ':8000/ws');
             ws.onopen = function() {
-                document.getElementById('live-ws-dot').className = 'dot ok';
+                clearInterval(_wsCountdownTimer);
                 wsDelay = 1000;
+                _setWsStatus('ok', 'Connected', '');
             };
             ws.onmessage = function(e) {
                 var d = JSON.parse(e.data);
@@ -341,12 +374,17 @@
                 document.getElementById('live-first-seen').textContent = d.firstSeen;
                 document.getElementById('live-unique-total').textContent = d.uniqueTotal;
             };
-            ws.onclose = ws.onerror = function() {
-                document.getElementById('live-ws-dot').className = 'dot err';
+            ws.onclose = function(e) {
+                _setWsStatus('err', 'Disconnected', _wsCloseLabel(e.code));
                 if (currentTab === 'live') {
+                    var delaySecs = Math.round(wsDelay / 1000);
+                    _startCountdown(delaySecs);
                     setTimeout(connectWS, wsDelay);
                     wsDelay = Math.min(wsDelay * 2, 30000);
                 }
+            };
+            ws.onerror = function() {
+                _setWsStatus('err', 'Disconnected', 'Connection error');
             };
         }
 
@@ -361,6 +399,11 @@
                         ? d.cpu_temp.toFixed(1) + '°C' : '—';
                     document.getElementById('live-disk').textContent = d.disk_total > 0
                         ? ((d.disk_used / d.disk_total) * 100).toFixed(1) + '%' : '—';
+                    if (ws && ws.readyState === 1 && d.ws_clients != null) {
+                        var n = d.ws_clients;
+                        document.getElementById('live-ws-detail').textContent =
+                            n + ' client' + (n === 1 ? '' : 's');
+                    }
                 })
                 .catch(function() {});
         }
