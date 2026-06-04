@@ -10,8 +10,7 @@ from shared_state import SharedState
 _MOCK_FRAME = np.zeros((480, 640, 3), dtype=np.uint8)
 _PERSON_CLASS_ID = 0
 
-import os as _os
-_BYTETRACK_CONFIG_PATH = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "bytetrack.yaml")
+_BYTETRACK_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bytetrack.yaml")
 
 
 def _write_bytetrack_config(state: SharedState) -> None:
