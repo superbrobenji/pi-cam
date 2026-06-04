@@ -155,7 +155,7 @@ async def update_settings(request: Request) -> JSONResponse:
             {"error": "iou_threshold must be a float between 0.1 and 0.99"},
             status_code=422,
         )
-    if not isinstance(track_memory_minutes, int) or not (1 <= track_memory_minutes <= 1440):
+    if isinstance(track_memory_minutes, bool) or not isinstance(track_memory_minutes, int) or not (1 <= track_memory_minutes <= 1440):
         return JSONResponse(
             {"error": "track_memory_minutes must be an int between 1 and 1440"},
             status_code=422,
@@ -167,7 +167,7 @@ async def update_settings(request: Request) -> JSONResponse:
         )
     if not isinstance(track_low_thresh, (int, float)) or not (0.05 <= track_low_thresh < track_high_thresh):
         return JSONResponse(
-            {"error": "track_low_thresh must be a float between 0.05 and track_high_thresh"},
+            {"error": "track_low_thresh must be a float >= 0.05 and strictly less than track_high_thresh"},
             status_code=422,
         )
     if not isinstance(new_track_thresh, (int, float)) or not (0.1 <= new_track_thresh <= 0.99):
