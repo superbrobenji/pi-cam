@@ -10,6 +10,7 @@ _FIELDS = frozenset({
     "health_error", "health_error_at",
     "stream_error", "stream_error_at",
     "entered_frame", "first_seen", "unique_total", "reset_tracking",
+    "model_name", "confidence_threshold", "iou_threshold", "inference_tick",
 })
 
 
@@ -40,6 +41,10 @@ class SharedState:
         self.first_seen = 0
         self.unique_total = 0
         self.reset_tracking = False
+        self.model_name = "yolov8s.pt"
+        self.confidence_threshold = 0.65
+        self.iou_threshold = 0.60
+        self.inference_tick = 0
 
     def update(self, **kwargs):
         unknown = kwargs.keys() - _FIELDS
@@ -75,6 +80,10 @@ class SharedState:
                 "first_seen": self.first_seen,
                 "unique_total": self.unique_total,
                 "reset_tracking": self.reset_tracking,
+                "model_name": self.model_name,
+                "confidence_threshold": self.confidence_threshold,
+                "iou_threshold": self.iou_threshold,
+                "inference_tick": self.inference_tick,
             }
 
     def get_frame(self) -> bytes:
