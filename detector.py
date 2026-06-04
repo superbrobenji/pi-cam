@@ -10,6 +10,22 @@ from shared_state import SharedState
 _MOCK_FRAME = np.zeros((480, 640, 3), dtype=np.uint8)
 _PERSON_CLASS_ID = 0
 
+import os as _os
+_BYTETRACK_CONFIG_PATH = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "bytetrack.yaml")
+
+
+def _write_bytetrack_config(state: SharedState) -> None:
+    content = (
+        "tracker_type: bytetrack\n"
+        f"track_high_thresh: {state.track_high_thresh}\n"
+        f"track_low_thresh: {state.track_low_thresh}\n"
+        f"new_track_thresh: {state.new_track_thresh}\n"
+        f"track_buffer: {state.track_memory_minutes * 60}\n"
+        f"match_thresh: {state.match_thresh}\n"
+    )
+    with open(_BYTETRACK_CONFIG_PATH, "w") as f:
+        f.write(content)
+
 
 def _encode_jpeg(frame: np.ndarray) -> bytes:
     ok, buf = cv2.imencode(".jpg", frame)
@@ -56,6 +72,8 @@ def _run_live_loop(
     stop_event: threading.Event,
     on_inference: Optional[Callable] = None,
 ) -> None:
+    _write_bytetrack_config(state)
+
     from ultralytics import YOLO
 
     try:
@@ -102,6 +120,7 @@ def _run_live_loop(
             results = model.track(
                 frame, persist=True, verbose=False,
                 iou=state.iou_threshold,
+                tracker=_BYTETRACK_CONFIG_PATH,
             )[0]
 
             person_indices = [
