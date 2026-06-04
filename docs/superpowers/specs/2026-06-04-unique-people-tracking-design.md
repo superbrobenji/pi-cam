@@ -96,16 +96,36 @@ Cards use the same `health-card` style already in the dashboard. The existing he
 
 The WebSocket `onmessage` handler in the dashboard is updated to read all four fields.
 
+A "Reset Unique Count" button appears below the people grid. Clicking it shows `confirm("Reset unique total? This cannot be undone.")`. On confirm, the dashboard POSTs to `/api/reset-tracking` on the monitor (port 8001), which proxies to `POST /control/reset-tracking` on the main app (port 8000). Routing through the monitor avoids browser CORS restrictions.
+
+### Reset mechanism
+
+`SharedState` gains a `reset_tracking: bool` field (init `False`). The detector checks it at the top of each iteration:
+
+```python
+if state.reset_tracking:
+    _prev_ids.clear()
+    _all_seen_ids.clear()
+    state.update(reset_tracking=False, unique_total=0, first_seen=0, entered_frame=0)
+```
+
+`POST /control/reset-tracking` on the main app sets `state.update(reset_tracking=True)`.  
+`POST /api/reset-tracking` on the monitor proxies to `:8000/control/reset-tracking`.
+
+Reset applies to live mode only. Mock mode ignores `reset_tracking` since tracking fields are always 0.
+
 ---
 
 ## Files Changed
 
 | File | Change |
 |---|---|
-| `shared_state.py` | Add `entered_frame`, `first_seen`, `unique_total` to `_FIELDS`, `__init__`, `snapshot()` |
-| `detector.py` | Switch to `model.track()`, compute all four values, update state; mock loop adds zero values |
-| `main.py` | WebSocket sends `rawCount`, `enteredFrame`, `firstSeen`, `uniqueTotal` |
-| `monitor_static/index.html` | Replace single count with 4-card grid; update WS message handler |
-| `tests/test_shared_state.py` | Add assertions for three new fields |
-| `tests/test_integration.py` | Update WebSocket test to expect `rawCount` instead of `count` |
+| `shared_state.py` | Add `entered_frame`, `first_seen`, `unique_total`, `reset_tracking` to `_FIELDS`, `__init__`, `snapshot()` |
+| `detector.py` | Switch to `model.track()`, compute all four values, check `reset_tracking` flag each tick; mock loop adds zero values |
+| `main.py` | WebSocket sends all four fields; add `POST /control/reset-tracking` endpoint |
+| `monitor.py` | Add `POST /api/reset-tracking` proxy endpoint |
+| `monitor_static/index.html` | Replace single count with 4-card grid; update WS handler; add Reset button with confirm |
+| `tests/test_shared_state.py` | Add assertions for four new fields |
+| `tests/test_integration.py` | Update WebSocket test; add reset endpoint test |
+| `tests/test_monitor.py` | Add reset proxy endpoint test |
 | `tests/test_detector.py` | Update frame/count assertions; mock returns 0 for tracking fields |
