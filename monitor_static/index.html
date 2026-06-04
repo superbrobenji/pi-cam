@@ -33,9 +33,6 @@
         .log-INFO { color: #4caf50; }
         .log-WARN { color: #ff9800; }
         .log-msg { color: #aaa; word-break: break-all; }
-        .count-panel { text-align: center; margin-bottom: 2rem; }
-        .count-label { font-size: 0.9rem; color: #666; letter-spacing: 0.15em; margin-bottom: 0.5rem; }
-        .count-value { font-size: 6rem; font-weight: bold; color: #fff; line-height: 1; }
         .health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
         .health-card { background: #1a1a1a; border: 1px solid #222; padding: 0.75rem; }
         .health-card-label { font-size: 0.75rem; color: #666; margin-bottom: 0.3rem; }
@@ -121,10 +118,27 @@
     </div>
 
     <div id="tab-live" class="tab-pane active">
-        <div class="count-panel">
-            <div class="count-label">PEOPLE IN FRAME</div>
-            <div class="count-value" id="live-count">—</div>
+        <div class="section-title" style="margin-bottom:0.75rem">PEOPLE</div>
+        <div class="health-grid" style="margin-bottom:0.75rem">
+            <div class="health-card">
+                <div class="health-card-label">IN FRAME</div>
+                <div class="health-card-value" id="live-raw-count">—</div>
+            </div>
+            <div class="health-card">
+                <div class="health-card-label">ENTERED</div>
+                <div class="health-card-value" id="live-entered-frame">—</div>
+            </div>
+            <div class="health-card">
+                <div class="health-card-label">FIRST SEEN</div>
+                <div class="health-card-value" id="live-first-seen">—</div>
+            </div>
+            <div class="health-card">
+                <div class="health-card-label">TOTAL UNIQUE</div>
+                <div class="health-card-value" id="live-unique-total">—</div>
+            </div>
         </div>
+        <button class="btn btn-danger" style="margin-bottom:1.5rem" onclick="resetTracking()">Reset Unique Count</button>
+        <div class="section-title" style="margin-bottom:0.75rem">SYSTEM</div>
         <div class="health-grid">
             <div class="health-card">
                 <div class="health-card-label">CPU</div>
@@ -296,7 +310,11 @@
                 wsDelay = 1000;
             };
             ws.onmessage = function(e) {
-                document.getElementById('live-count').textContent = JSON.parse(e.data).count;
+                var d = JSON.parse(e.data);
+                document.getElementById('live-raw-count').textContent = d.rawCount;
+                document.getElementById('live-entered-frame').textContent = d.enteredFrame;
+                document.getElementById('live-first-seen').textContent = d.firstSeen;
+                document.getElementById('live-unique-total').textContent = d.uniqueTotal;
             };
             ws.onclose = ws.onerror = function() {
                 document.getElementById('live-ws-dot').className = 'dot err';
@@ -349,6 +367,13 @@
 
         function esc(s) {
             return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function resetTracking() {
+            if (!confirm('Reset unique total? This cannot be undone.')) return;
+            fetch('/api/reset-tracking', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .catch(function() { alert('Reset failed'); });
         }
 
         (function() {
