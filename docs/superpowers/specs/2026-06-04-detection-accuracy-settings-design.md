@@ -161,6 +161,24 @@ IoU         [ 0.60 ]
 
 ---
 
+## Dashboard dot style change
+
+Error/inactive state dots change from filled red to a hollow red ring. Green (active) stays filled.
+
+Current CSS:
+```css
+.dot.err { background: #f44336; }
+```
+
+New CSS:
+```css
+.dot.err { background: transparent; border: 2px solid #f44336; }
+```
+
+Applies to all `.dot.err` instances across both OPS and LIVE tabs (service dot, component dots, WS dot).
+
+---
+
 ## Files changed
 
 | File | Change |
@@ -169,7 +187,7 @@ IoU         [ 0.60 ]
 | `detector.py` | `on_inference` callback, read thresholds from state, remove constant, increment tick |
 | `main.py` | `_inference_event`, event-driven WS, `POST /control/settings` |
 | `monitor.py` | `GET /api/settings`, `POST /api/settings` |
-| `monitor_static/index.html` | DETECTION settings panel, `loadSettings()`, `applySettings()` |
+| `monitor_static/index.html` | DETECTION settings panel, `loadSettings()`, `applySettings()`, hollow err dot style |
 | `tests/test_shared_state.py` | Assert 4 new fields |
 | `tests/test_detector.py` | Test `on_inference` callback fires; mock sets `inference_tick > 0` |
 | `tests/test_integration.py` | Test settings endpoint validation + response |
