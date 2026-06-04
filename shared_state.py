@@ -11,6 +11,8 @@ _FIELDS = frozenset({
     "stream_error", "stream_error_at",
     "entered_frame", "first_seen", "unique_total", "reset_tracking",
     "model_name", "confidence_threshold", "iou_threshold", "inference_tick",
+    "track_memory_minutes", "track_high_thresh", "track_low_thresh",
+    "new_track_thresh", "match_thresh",
 })
 
 
@@ -45,6 +47,11 @@ class SharedState:
         self.confidence_threshold = 0.65
         self.iou_threshold = 0.60
         self.inference_tick = 0
+        self.track_memory_minutes = 240
+        self.track_high_thresh = 0.5
+        self.track_low_thresh = 0.1
+        self.new_track_thresh = 0.5
+        self.match_thresh = 0.8
 
     def update(self, **kwargs):
         unknown = kwargs.keys() - _FIELDS
@@ -84,6 +91,11 @@ class SharedState:
                 "confidence_threshold": self.confidence_threshold,
                 "iou_threshold": self.iou_threshold,
                 "inference_tick": self.inference_tick,
+                "track_memory_minutes": self.track_memory_minutes,
+                "track_high_thresh": self.track_high_thresh,
+                "track_low_thresh": self.track_low_thresh,
+                "new_track_thresh": self.new_track_thresh,
+                "match_thresh": self.match_thresh,
             }
 
     def get_frame(self) -> bytes:
