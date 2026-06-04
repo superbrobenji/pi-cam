@@ -40,7 +40,12 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         state.update(ws_clients=len(ws_clients))
     try:
         while True:
-            await websocket.send_json({"count": state.count})
+            await websocket.send_json({
+                "rawCount": state.count,
+                "enteredFrame": state.entered_frame,
+                "firstSeen": state.first_seen,
+                "uniqueTotal": state.unique_total,
+            })
             await asyncio.sleep(1.0)
     except Exception:
         pass
@@ -105,6 +110,13 @@ async def restart_health() -> JSONResponse:
     log_buffer.append("health", "INFO", "Restart requested via /control/restart/health")
     threading.Thread(target=run_health_poller, args=(state, 2.0, _health_stop), daemon=True).start()
     return JSONResponse({"status": "restarting"})
+
+
+@app.post("/control/reset-tracking")
+async def reset_tracking() -> JSONResponse:
+    state.update(reset_tracking=True)
+    log_buffer.append("detector", "INFO", "Tracking reset requested")
+    return JSONResponse({"status": "ok"})
 
 
 @app.get("/logs/{component}")
