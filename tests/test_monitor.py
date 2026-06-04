@@ -69,3 +69,9 @@ def test_restart_service_returns_500_on_failure(client, monkeypatch):
     )
     resp = client.post("/api/restart/service")
     assert resp.status_code == 500
+
+
+def test_reset_tracking_returns_503_when_offline(client):
+    _monitor_module._state.app_online = False
+    resp = client.post("/api/reset-tracking")
+    assert resp.status_code == 503

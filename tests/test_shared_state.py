@@ -24,6 +24,10 @@ def test_initial_values():
     assert snap["health_error_at"] is None
     assert snap["stream_error"] is None
     assert snap["stream_error_at"] is None
+    assert snap["entered_frame"] == 0
+    assert snap["first_seen"] == 0
+    assert snap["unique_total"] == 0
+    assert snap["reset_tracking"] is False
 
 
 def test_update_and_snapshot():

@@ -9,6 +9,7 @@ _FIELDS = frozenset({
     "model_error", "model_error_at",
     "health_error", "health_error_at",
     "stream_error", "stream_error_at",
+    "entered_frame", "first_seen", "unique_total", "reset_tracking",
 })
 
 
@@ -35,6 +36,10 @@ class SharedState:
         self.health_error_at: Optional[float] = None
         self.stream_error: Optional[str] = None
         self.stream_error_at: Optional[float] = None
+        self.entered_frame = 0
+        self.first_seen = 0
+        self.unique_total = 0
+        self.reset_tracking = False
 
     def update(self, **kwargs):
         unknown = kwargs.keys() - _FIELDS
@@ -66,6 +71,10 @@ class SharedState:
                 "health_error_at": self.health_error_at,
                 "stream_error": self.stream_error,
                 "stream_error_at": self.stream_error_at,
+                "entered_frame": self.entered_frame,
+                "first_seen": self.first_seen,
+                "unique_total": self.unique_total,
+                "reset_tracking": self.reset_tracking,
             }
 
     def get_frame(self) -> bytes:

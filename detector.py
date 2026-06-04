@@ -34,7 +34,10 @@ def _run_mock_loop(state: SharedState, stop_event: threading.Event) -> None:
         t0 = time.monotonic()
         if state.stream_active:
             state.update(frame=_encode_jpeg(_MOCK_FRAME))
-        state.update(camera_ok=True, count=0)
+        state.update(
+            camera_ok=True, count=0,
+            entered_frame=0, first_seen=0, unique_total=0,
+        )
         stop_event.wait(max(0.0, 1.0 - (time.monotonic() - t0)))
 
 
@@ -52,8 +55,22 @@ def _run_live_loop(state: SharedState, stop_event: threading.Event) -> None:
 
     cap = None
     retry_delay = 2.0
+    prev_ids: set = set()
+    all_seen_ids: set = set()
+
     while not stop_event.is_set():
         t0 = time.monotonic()
+
+        if state.reset_tracking:
+            prev_ids = set()
+            all_seen_ids = set()
+            state.update(
+                reset_tracking=False,
+                unique_total=0,
+                first_seen=0,
+                entered_frame=0,
+            )
+
         try:
             if cap is None or not cap.isOpened():
                 cap = cv2.VideoCapture(0)
@@ -68,21 +85,39 @@ def _run_live_loop(state: SharedState, stop_event: threading.Event) -> None:
             if state.stream_active:
                 state.update(frame=_encode_jpeg(frame))
 
-            results = model(frame, verbose=False)[0]
-            count = sum(
-                1
-                for box in results.boxes
+            results = model.track(frame, persist=True, verbose=False)[0]
+
+            person_indices = [
+                i for i, box in enumerate(results.boxes)
                 if int(box.cls[0]) == _PERSON_CLASS_ID
                 and float(box.conf[0]) >= _CONFIDENCE_THRESHOLD
-            )
+            ]
+
+            if results.boxes.id is not None:
+                track_ids = results.boxes.id.int().cpu().flatten().tolist()
+                ids = set(track_ids[i] for i in person_indices)
+            else:
+                ids = set()
+
+            entered_frame = len(ids - prev_ids)
+            new_ids = ids - all_seen_ids
+            all_seen_ids.update(ids)
+            prev_ids = ids
+
             del results
-            state.update(count=count)
+            state.update(
+                count=len(person_indices),
+                entered_frame=entered_frame,
+                first_seen=len(new_ids),
+                unique_total=len(all_seen_ids),
+            )
 
         except Exception as e:
             msg = str(e)
             log_buffer.append("detector", "ERROR", msg)
             state.update(
                 camera_ok=False, count=0,
+                entered_frame=0, first_seen=0,
                 camera_error=msg, camera_error_at=time.time(),
             )
             if cap is not None:

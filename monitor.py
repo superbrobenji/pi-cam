@@ -115,3 +115,15 @@ async def restart_service() -> JSONResponse:
     if result.returncode != 0:
         return JSONResponse({"error": result.stderr}, status_code=500)
     return JSONResponse({"status": "restarting"})
+
+
+@app.post("/api/reset-tracking")
+async def reset_tracking() -> JSONResponse:
+    if not _state.app_online:
+        return JSONResponse({"error": "main app offline"}, status_code=503)
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post(f"{MAIN_APP_URL}/control/reset-tracking")
+            return JSONResponse(resp.json())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=502)

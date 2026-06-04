@@ -61,3 +61,12 @@ def test_detector_stops_when_stop_event_set():
     stop.set()
     t.join(timeout=3.0)
     assert not t.is_alive(), "Detector thread should have exited after stop_event set"
+
+
+def test_mock_sets_tracking_fields_to_zero():
+    state = SharedState()
+    _start_detector(state)
+    snap = state.snapshot()
+    assert snap["entered_frame"] == 0
+    assert snap["first_seen"] == 0
+    assert snap["unique_total"] == 0

@@ -68,8 +68,14 @@ def test_health_value_types(client):
 def test_websocket_emits_count(client):
     with client.websocket_connect("/ws") as ws:
         data = ws.receive_json()
-        assert "count" in data
-        assert isinstance(data["count"], int)
+        assert "rawCount" in data
+        assert "enteredFrame" in data
+        assert "firstSeen" in data
+        assert "uniqueTotal" in data
+        assert isinstance(data["rawCount"], int)
+        assert isinstance(data["enteredFrame"], int)
+        assert isinstance(data["firstSeen"], int)
+        assert isinstance(data["uniqueTotal"], int)
 
 
 def test_websocket_increments_ws_clients(client):
@@ -128,3 +134,9 @@ def test_restart_health_returns_restarting(client):
     resp = client.post("/control/restart/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "restarting"
+
+
+def test_reset_tracking_returns_ok(client):
+    resp = client.post("/control/reset-tracking")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
