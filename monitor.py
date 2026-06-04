@@ -146,6 +146,6 @@ async def post_settings(request: Request) -> JSONResponse:
         body = await request.json()
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(f"{MAIN_APP_URL}/control/settings", json=body)
-            return JSONResponse(resp.json())
+            return JSONResponse(resp.json(), status_code=resp.status_code)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=502)
