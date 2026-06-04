@@ -135,6 +135,11 @@ async def get_settings() -> JSONResponse:
         "model_name": _state.last_health.get("model_name", "yolov8s.pt"),
         "confidence_threshold": _state.last_health.get("confidence_threshold", 0.65),
         "iou_threshold": _state.last_health.get("iou_threshold", 0.60),
+        "track_memory_minutes": _state.last_health.get("track_memory_minutes", 240),
+        "track_high_thresh": _state.last_health.get("track_high_thresh", 0.5),
+        "track_low_thresh": _state.last_health.get("track_low_thresh", 0.1),
+        "new_track_thresh": _state.last_health.get("new_track_thresh", 0.5),
+        "match_thresh": _state.last_health.get("match_thresh", 0.8),
     })
 
 
