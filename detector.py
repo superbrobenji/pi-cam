@@ -21,6 +21,7 @@ def _write_bytetrack_config(state: SharedState) -> None:
         f"new_track_thresh: {state.new_track_thresh}\n"
         f"track_buffer: {state.track_memory_minutes * 60}\n"
         f"match_thresh: {state.match_thresh}\n"
+        "fuse_score: True\n"
     )
     with open(_BYTETRACK_CONFIG_PATH, "w") as f:
         f.write(content)
